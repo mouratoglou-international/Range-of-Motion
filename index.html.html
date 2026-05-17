@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>関節可動域（ROM）インタラクティブ図解</title>
+  <meta name="description" content="全身の関節可動域（ROM）を図解するインタラクティブツール。日本整形外科学会・日本リハビリテーション医学会基準値を収録。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f4f2ee;
+      --surface: #ffffff;
+      --surface2: #f0ede8;
+      --border: #ddd9d2;
+      --text: #1a1814;
+      --text-sub: #6b6760;
+      --text-hint: #aaa69e;
+      --cervical: #1D9E75;
+      --thoracic: #185FA5;
+      --lumbar: #BA7517;
+      --upper: #534AB7;
+      --lower: #993C1D;
+      --accent: #1a1814;
+      --radius: 12px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.07);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Noto Sans JP', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 32px;
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    header span {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--text-hint);
+      letter-spacing: 0.08em;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 28px 20px 60px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    /* --- Body figure --- */
+    .figure-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 12px 16px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      position: sticky;
+      top: 20px;
+    }
+
+    #body-svg { overflow: visible; }
+
+    .joint-btn { cursor: pointer; }
+    .joint-btn circle {
+      transition: r 0.15s, filter 0.15s;
+    }
+    .joint-btn:hover circle { filter: brightness(0.8); }
+    .joint-btn.active circle { r: 12; filter: drop-shadow(0 0 4px currentColor); }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 12px;
+      justify-content: center;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: var(--text-sub);
+    }
+    .legend-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* --- Info panel --- */
+    .info-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .info-header {
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .info-header h2 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .info-header h2 .dot {
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .info-header p {
+      font-size: 12px;
+      color: var(--text-sub);
+      margin-top: 4px;
+      padding-left: 22px;
+    }
+
+    .info-body {
+      padding: 20px 24px;
+    }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      min-height: 280px;
+      color: var(--text-hint);
+    }
+    .empty-state svg { opacity: 0.25; }
+    .empty-state p { font-size: 13px; }
+
+    .motion-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .motion-row { display: flex; flex-direction: column; gap: 5px; }
+
+    .motion-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .motion-name {
+      font-size: 13px;
+      color: var(--text-sub);
+    }
+    .motion-note {
+      font-size: 11px;
+      color: var(--text-hint);
+      margin-left: 4px;
+    }
+    .motion-deg {
+      font-family: 'DM Mono', monospace;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .bar-track {
+      height: 8px;
+      background: var(--surface2);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      width: 0;
+      transition: width 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .source-note {
+      margin-top: 20px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-hint);
+    }
+
+    /* --- Mobile --- */
+    @media (max-width: 640px) {
+      header { padding: 14px 16px; }
+      header h1 { font-size: 16px; }
+      .container { padding: 16px 12px 48px; }
+      .layout {
+        grid-template-columns: 1fr;
+      }
+      .figure-card {
+        position: static;
+        flex-direction: row;
+        flex-wrap: wrap;
+        padding: 16px;
+        justify-content: center;
+      }
+      #body-svg { width: 160px; height: auto; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>関節可動域（ROM）図解</h1>
+  <span>JOA / JARM 基準値 — 全身9部位</span>
+</header>
+
+<main class="container">
+  <div class="layout">
+
+    <!-- Body figure -->
+    <div class="figure-card">
+      <svg id="body-svg" viewBox="0 0 220 480" width="200" height="436">
+        <!-- Body parts -->
+        <ellipse cx="110" cy="34" rx="22" ry="26" fill="#e8e4dc" stroke="#ccc8bf" stroke-width="1"/>
+        <rect x="103" y="58" width="14" height="18" rx="4" fill="#e8e4dc" stroke="#ccc8bf" stroke-width="1"/>
+        <!-- Torso upper -->
+        <rect x="74" y="74" width="72" height="66" rx="10" fill="#e8e4dc" stroke="#ccc8bf" stroke-width="1"/>
+        <!-- Torso lower -->
+        <rect x="76" y="138" width="68" height="44" rx="8" fill="#e8e4dc" stroke="#ccc8bf" stroke-width="1"/>
+        <!-- Pelvis -->
+        <rect x="72" y="180" width="76" height="30" rx="8" fill="#e8e4dc" stroke="#ccc8bf" stroke-width="1"/>
+        <!-- Left arm -->
+        <rect x="47" y="76" width="22" height="62" rx="8" fill="#e8e4dc" stroke="#ccc8bf" stroke-width="1"/>
+        <rect x="50" y="146" width="18" height="54" rx="7" fill="#e8e4dc" stroke="#ccc8bf" stroke-width="1"/>
+        <ellipse cx="59" cy="214" rx="10" ry="12" fill="#e8e4dc" stroke="#ccc8bf" stroke-width="1"/>
+        <!-- Right arm -->
+        <rect x="151" y="76" width="22" height="62" rx="8" fill="#e8e4dc" stroke="#ccc8bf" stroke-width="1"/>
+        <rect x="152" y="146" width="18" height="54" rx="7" fill="#e8e4dc" stroke="#ccc8bf" stroke-width="1"/>
+        <ellipse cx="161" cy="214" rx="10" ry="12" fill="#e8e4dc" stroke="#ccc8bf" stroke-width="1"/>
+        <!-- Left leg -->
+        <rect x="77" y="208" width="26" height="76" rx="9" fill="#e8e4dc" stroke="#ccc8bf" stroke-width="1"/>
+        <rect x="80" y="290" width="20" height="76" rx="7" fill="#e8e4dc" stroke="#ccc8bf" stroke-width="1"/>
+        <ellipse cx="90" cy="378" rx="18" ry="10" fill="#e8e4dc" stroke="#ccc8bf" stroke-width="1"/>
+        <!-- Right leg -->
+        <rect x="117" y="208" width="26" height="76" rx="9" fill="#e8e4dc" stroke="#ccc8bf" stroke-width="1"/>
+        <rect x="120" y="290" width="20" height="76" rx="7" fill="#e8e4dc" stroke="#ccc8bf" stroke-width="1"/>
+        <ellipse cx="130" cy="378" rx="18" ry="10" fill="#e8e4dc" stroke="#ccc8bf" stroke-width="1"/>
+
+        <!-- Joint buttons -->
+        <g class="joint-btn" id="jb-cervical" onclick="selectJoint('cervical')" role="button" aria-label="頸椎">
+          <circle cx="110" cy="65" r="10" fill="#1D9E75" stroke="white" stroke-width="2"/>
+          <text x="110" y="69" text-anchor="middle" font-size="9" font-weight="700" fill="white" font-family="Noto Sans JP, sans-serif">頸</text>
+        </g>
+        <g class="joint-btn" id="jb-thoracic" onclick="selectJoint('thoracic')" role="button" aria-label="胸椎">
+          <circle cx="110" cy="102" r="10" fill="#185FA5" stroke="white" stroke-width="2"/>
+          <text x="110" y="106" text-anchor="middle" font-size="9" font-weight="700" fill="white" font-family="Noto Sans JP, sans-serif">胸</text>
+        </g>
+        <g class="joint-btn" id="jb-lumbar" onclick="selectJoint('lumbar')" role="button" aria-label="腰椎">
+          <circle cx="110" cy="152" r="10" fill="#BA7517" stroke="white" stroke-width="2"/>
+          <text x="110" y="156" text-anchor="middle" font-size="9" font-weight="700" fill="white" font-family="Noto Sans JP, sans-serif">腰</text>
+        </g>
+        <g class="joint-btn" id="jb-shoulder" onclick="selectJoint('shoulder')" role="button" aria-label="肩関節">
+          <circle cx="162" cy="78" r="10" fill="#534AB7" stroke="white" stroke-width="2"/>
+          <text x="162" y="82" text-anchor="middle" font-size="9" font-weight="700" fill="white" font-family="Noto Sans JP, sans-serif">肩</text>
+        </g>
+        <g class="joint-btn" id="jb-elbow" onclick="selectJoint('elbow')" role="button" aria-label="肘関節">
+          <circle cx="161" cy="146" r="10" fill="#534AB7" stroke="white" stroke-width="2"/>
+          <text x="161" y="150" text-anchor="middle" font-size="9" font-weight="700" fill="white" font-family="Noto Sans JP, sans-serif">肘</text>
+        </g>
+        <g class="joint-btn" id="jb-wrist" onclick="selectJoint('wrist')" role="button" aria-label="手関節">
+          <circle cx="161" cy="200" r="10" fill="#534AB7" stroke="white" stroke-width="2"/>
+          <text x="161" y="204" text-anchor="middle" font-size="9" font-weight="700" fill="white" font-family="Noto Sans JP, sans-serif">手</text>
+        </g>
+        <g class="joint-btn" id="jb-hip" onclick="selectJoint('hip')" role="button" aria-label="股関節">
+          <circle cx="130" cy="208" r="10" fill="#993C1D" stroke="white" stroke-width="2"/>
+          <text x="130" y="212" text-anchor="middle" font-size="9" font-weight="700" fill="white" font-family="Noto Sans JP, sans-serif">股</text>
+        </g>
+        <g class="joint-btn" id="jb-knee" onclick="selectJoint('knee')" role="button" aria-label="膝関節">
+          <circle cx="130" cy="288" r="10" fill="#993C1D" stroke="white" stroke-width="2"/>
+          <text x="130" y="292" text-anchor="middle" font-size="9" font-weight="700" fill="white" font-family="Noto Sans JP, sans-serif">膝</text>
+        </g>
+        <g class="joint-btn" id="jb-ankle" onclick="selectJoint('ankle')" role="button" aria-label="足関節">
+          <circle cx="130" cy="368" r="10" fill="#993C1D" stroke="white" stroke-width="2"/>
+          <text x="130" y="372" text-anchor="middle" font-size="9" font-weight="700" fill="white" font-family="Noto Sans JP, sans-serif">足</text>
+        </g>
+      </svg>
+
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--cervical)"></div>頸椎</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--thoracic)"></div>胸椎</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--lumbar)"></div>腰椎</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--upper)"></div>上肢</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--lower)"></div>下肢</div>
+      </div>
+    </div>
+
+    <!-- Info panel -->
+    <div class="info-card">
+      <div class="info-header" id="info-header">
+        <h2><span class="dot" id="info-dot" style="background:#ccc8bf"></span><span id="info-title">関節を選択</span></h2>
+        <p id="info-sub">左の人体図の丸いボタンをクリックしてください</p>
+      </div>
+      <div class="info-body" id="info-body">
+        <div class="empty-state">
+          <svg viewBox="0 0 80 80" width="64" height="64">
+            <circle cx="40" cy="40" r="30" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="5 4"/>
+            <line x1="40" y1="10" x2="40" y2="70" stroke="currentColor" stroke-width="1"/>
+            <line x1="10" y1="40" x2="70" y2="40" stroke="currentColor" stroke-width="1"/>
+          </svg>
+          <p>部位を選ぶと基準ROMが表示されます</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+const joints = {
+  cervical: {
+    name: '頸椎',
+    sub: 'C0–C7｜首の関節',
+    color: '#1D9E75',
+    motions: [
+      { name: '屈曲（前屈）', deg: 60 },
+      { name: '伸展（後屈）', deg: 50 },
+      { name: '側屈', deg: 50, note: '片側' },
+      { name: '回旋', deg: 60, note: '片側' },
+    ]
+  },
+  thoracic: {
+    name: '胸椎',
+    sub: 'T1–T12｜胸部脊椎',
+    color: '#185FA5',
+    motions: [
+      { name: '屈曲（前屈）', deg: 35 },
+      { name: '伸展（後屈）', deg: 25 },
+      { name: '側屈', deg: 25, note: '片側' },
+      { name: '回旋', deg: 35, note: '片側' },
+    ]
+  },
+  lumbar: {
+    name: '腰椎',
+    sub: 'L1–L5｜腰部脊椎',
+    color: '#BA7517',
+    motions: [
+      { name: '屈曲（前屈）', deg: 45 },
+      { name: '伸展（後屈）', deg: 30 },
+      { name: '側屈', deg: 50, note: '片側' },
+      { name: '回旋', deg: 40, note: '片側' },
+    ]
+  },
+  shoulder: {
+    name: '肩関節',
+    sub: '肩甲上腕関節（GH関節）',
+    color: '#534AB7',
+    motions: [
+      { name: '屈曲（前方挙上）', deg: 180 },
+      { name: '伸展（後方挙上）', deg: 50 },
+      { name: '外転', deg: 180 },
+      { name: '内転', deg: 0, note: '0°・中立位' },
+      { name: '外旋', deg: 60 },
+      { name: '内旋', deg: 80 },
+    ]
+  },
+  elbow: {
+    name: '肘関節',
+    sub: '腕尺関節・腕橈関節',
+    color: '#534AB7',
+    motions: [
+      { name: '屈曲', deg: 145 },
+      { name: '伸展', deg: 5, note: '過伸展含む' },
+      { name: '前腕回外', deg: 90 },
+      { name: '前腕回内', deg: 90 },
+    ]
+  },
+  wrist: {
+    name: '手関節',
+    sub: '橈骨手根関節（手首）',
+    color: '#534AB7',
+    motions: [
+      { name: '掌屈', deg: 90 },
+      { name: '背屈', deg: 70 },
+      { name: '橈屈', deg: 25 },
+      { name: '尺屈', deg: 55 },
+    ]
+  },
+  hip: {
+    name: '股関節',
+    sub: '臼蓋大腿関節',
+    color: '#993C1D',
+    motions: [
+      { name: '屈曲（膝伸展位）', deg: 90 },
+      { name: '屈曲（膝屈曲位）', deg: 125 },
+      { name: '伸展', deg: 15 },
+      { name: '外転', deg: 45 },
+      { name: '内転', deg: 20 },
+      { name: '外旋', deg: 45 },
+      { name: '内旋', deg: 45 },
+    ]
+  },
+  knee: {
+    name: '膝関節',
+    sub: '大腿脛骨関節',
+    color: '#993C1D',
+    motions: [
+      { name: '屈曲', deg: 130 },
+      { name: '伸展', deg: 0, note: '0°・完全伸展' },
+      { name: '内旋（屈曲位）', deg: 10 },
+      { name: '外旋（屈曲位）', deg: 20 },
+    ]
+  },
+  ankle: {
+    name: '足関節',
+    sub: '距腿関節（足首）',
+    color: '#993C1D',
+    motions: [
+      { name: '背屈（つま先上げ）', deg: 20 },
+      { name: '底屈（つま先下げ）', deg: 45 },
+      { name: '内反', deg: 30 },
+      { name: '外反', deg: 20 },
+    ]
+  },
+};
+
+let activeId = null;
+
+function selectJoint(id) {
+  if (activeId) {
+    document.getElementById('jb-' + activeId)?.classList.remove('active');
+  }
+  activeId = id;
+  document.getElementById('jb-' + id)?.classList.add('active');
+
+  const j = joints[id];
+
+  document.getElementById('info-dot').style.background = j.color;
+  document.getElementById('info-title').textContent = j.name;
+  document.getElementById('info-sub').textContent = j.sub + '　— JOA / JARM 基準値';
+
+  const body = document.getElementById('info-body');
+  const html = `
+    <div class="motion-grid">
+      ${j.motions.map(m => {
+        const pct = Math.round((m.deg / 180) * 100);
+        return `
+          <div class="motion-row">
+            <div class="motion-top">
+              <span class="motion-name">${m.name}${m.note ? `<span class="motion-note">（${m.note}）</span>` : ''}</span>
+              <span class="motion-deg">${m.deg}°</span>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill" style="background:${j.color}" data-target="${pct}"></div>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+    <p class="source-note">出典：日本整形外科学会・日本リハビリテーション医学会「関節可動域表示ならびに測定法」</p>
+  `;
+  body.innerHTML = html;
+
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    body.querySelectorAll('.bar-fill').forEach(el => {
+      el.style.width = el.dataset.target + '%';
+    });
+  }));
+
+  // Scroll into view on mobile
+  if (window.innerWidth <= 640) {
+    document.querySelector('.info-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+// Keyboard support
+document.querySelectorAll('.joint-btn').forEach(btn => {
+  btn.setAttribute('tabindex', '0');
+  btn.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      btn.onclick();
+    }
+  });
+});
+</script>
+</body>
+</html>
